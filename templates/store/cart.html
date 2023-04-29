@@ -7,7 +7,12 @@
     <div class="container">
     
     <!-- ============================ COMPONENT 1 ================================= -->
-    
+    {% if not cart_items %}
+        <h2>Your Cart is empty</h2>
+        <div class="text-center">
+        <a href="{% url 'store' %}" class="btn btn-primary" > Continue Shopping </a>
+    </div>
+    {% else %}
     <div class="row">
         <aside class="col-lg-9">
     <div class="card">
@@ -27,8 +32,16 @@
                     <figure class="itemside align-items-center">
                         <div class="aside"><img src="{{item.product.images.url}}" class="img-sm"></div>
                         <figcaption class="info">
-                            <a href="#" class="title text-dark">{{item.product.product_name}}</a>
-                            <p class="text-muted small">Matrix: 25 Mpx <br> Brand: Canon</p>
+                            <a href="{{ item.product.get_url }}" class="title text-dark">{{item.product.product_name}}</a>
+
+                            <p class="text-muted small">
+                                {% if item.variations.all%}
+                                    {% for item in item.variations.all%}
+                                        {{ item.variation_category |capfirst }} : {{ item.variation_value | capfirst }}  
+                                    {% endfor %}
+                                {% endif %}
+                            </p>
+
                         </figcaption>
                     </figure>
                 </td>
@@ -37,12 +50,18 @@
                                 <div class="col"> 
                                     <div class="input-group input-spinner">
                                         <div class="input-group-prepend">
-                                        <a  href="{% url 'remove-cart' item.product.id %}" class="btn btn-light" type="button" id="button-plus"> <i class="fa fa-minus"></i> </a>
+                                        <a  href="{% url 'remove-cart' item.product.id %}" class="btn btn-light" type="button" id="button-minus"> <i class="fa fa-minus"></i> </a>
                                         </div>
                                         <input type="text" class="form-control"  value="{{item.quantity}}">
                                         <div class="input-group-append">
-                                        <a href="{% url 'add-cart' item.product.id %}" class="btn btn-light" type="button" id="button-minus"> <i class="fa fa-plus"></i> </a>
-                                        </div>
+                                        <form action="{% url 'add-cart' item.product.id %}" method="POST">
+                                          {% csrf_token %}
+                                            {% for variation in item.variations.all %}
+                                                <input type="hidden" name="{{variation.variation_category | capfirst }}" value="{{variation.variation_value | lower }}" />
+                                            {% endfor %}
+                                            <button class="btn btn-light" type="submit" id="button-plus"> <i class="fa fa-plus"></i> </button>
+                                        </form>
+                                    </div>
                                     </div> <!-- input-group.// -->
                                 </div> <!-- col.// -->
                 </td>
@@ -53,7 +72,7 @@
                     </div> <!-- price-wrap .// -->
                 </td>
                 <td class="text-right"> 
-                <a href="{% url 'remove-cart-item' item.product.id %}" class="btn btn-danger"> Remove</a>
+                <a href="{% url 'remove-cart-item' item.product.id %}" onclick="return confirm('Are you sure want to remove?')" class="btn btn-danger"> Remove</a>
                 </td>
             </tr>
         {% endfor %}
@@ -91,6 +110,7 @@
     
     
     </div> <!-- row.// -->
+    {% endif %}
     <!-- ============================ COMPONENT 1 END .// ================================= -->
     
     </div> <!-- container .//  -->
