@@ -3,6 +3,10 @@ from .forms import RegistrationForm
 from accounts.models import Account
 from django.contrib import messages, auth
 from django.contrib.auth.decorators import login_required
+from carts.models import Cart, CartItem
+from carts.views import _cart_id
+import requests
+
 #verification email
 from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
@@ -63,9 +67,52 @@ def login(request):
 
         user = auth.authenticate(email=email, password=password)
         if user is not None:
+            try:
+                cart = Cart.objects.get(cart_id=_cart_id(request))
+                cart_items = CartItem.objects.filter(cart=cart)
+                if cart_items is not None:
+                    
+                    product_variations_list = []
+                    for item in cart_items:
+                        variations = item.variations.all()
+                        product_variations_list.append(list(variations))
+
+                    existing_variations_list = []
+                    ids_list =[]
+                    cart_items = CartItem.objects.filter(user=user)
+                    for item in cart_items:
+                        variations = item.variations.all()
+                        existing_variations_list.append(list(variations))
+                        ids_list.append(item.id)
+
+                    for pr in product_variations_list:
+                        if pr in existing_variations_list:
+                            index = existing_variations_list.index(pr)
+                            item_id = ids_list[index]
+                            item = CartItem.objects.get(id=item_id)
+                            item.quantity += 1
+                            item.user = user
+                            item.save()
+                        else:
+                            cart_items = CartItem.objects.filter(cart=cart)
+                            for item in cart_items:
+                                item.user = user
+                                item.save()
+
+            except:
+                pass
             auth.login(request, user)
             messages.success(request, 'You are now Logged in !')
-            return redirect('dashboard')
+            url = request.META.get('HTTP_REFERER')
+            try:
+                query = requests.utils.urlparse(url).query
+                print('query->' , query)                
+                params = dict(x.split('=') for x in query.split('&'))
+                if 'next' in params:
+                    nextpage = params['next']
+                    return redirect(nextpage)
+            except:
+              return redirect('dashboard')
         else:
             messages.error(request, 'Invalid Login credentials')
             return redirect('login')
