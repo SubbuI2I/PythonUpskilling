@@ -13,7 +13,7 @@
                 <div class="card">
                 <div class="card-body">
                     <h5 class="card-title mb-4"> Billing Address</h5>
-                    <form action="" method="post">
+                    <form action="{% url 'place-order' %}" method="post">
                       {% csrf_token %}
                         <div class="form-row">
                             <div class="col form-group">
@@ -32,17 +32,17 @@
                             </div>
                             <div class="col form-group">
                                 <label for="">Phone Number</label>
-                                <input type="text" name="phone_number" class="form-control" required />
+                                <input type="text" name="phone" class="form-control" required />
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="col form-group">
                                 <label>Address 1</label>
-                                <input type="text" name="address1" class="form-control" required />
+                                <input type="text" name="address_line_1" class="form-control" required />
                             </div>
                             <div class="col form-group">
                                 <label>Address 2</label>
-                                <input type="text" name="address2" class="form-control" />
+                                <input type="text" name="address_line_2" class="form-control" />
                             </div>
                         </div>
 
@@ -69,7 +69,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Order Note</label>
-                                <textarea name="notes" cols="80" rows="2" class="form-control"></textarea>
+                                <textarea name="order_note" cols="80" rows="2" class="form-control"></textarea>
                             </div>
                         </div>
                 </div>
