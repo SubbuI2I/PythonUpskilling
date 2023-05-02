@@ -46,16 +46,22 @@ class Order(models.Model):
 
     def full_name(self):
         return self.first_name +' ' + self.last_name
-    
+    def full_address(self):
+        return   self.address_line_1 + ' ' + self.address_line_2 + ', ' + \
+                    self.city  +', '+ self.state 
+                 
     def __str__(self):
         return self.first_name
     
 class OrderProduct(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    # order_id = models.CharField(max_length=50,null=False)
+    # user_id = models.CharField(max_length=20, null=False)
+    # product_id = models.CharField(max_length=20, null=False)
     payment = models.ForeignKey(Payment, on_delete=models.SET_NULL, blank=True, null=True)
     user = models.ForeignKey(Account, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    variation = models.ForeignKey(Variation, on_delete=models.CASCADE)
+    variations = models.ManyToManyField(Variation,blank=True)
     color = models.CharField(max_length=20)
     size = models.CharField(max_length=20)
     quantity = models.IntegerField()

@@ -3,13 +3,18 @@ from carts.models import CartItem
 from .forms import OrderForm, Order
 from datetime import datetime
 import json
-from .models import Payment
+from .models import Payment, OrderProduct
+from store.models import Product
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
+from django.http import JsonResponse
 
 # Create your views here.
 
 def payments(request):
     body = json.loads(request.body)
-    order = Order.objects.get(user=request.user, is_ordered=False, order_number=body['orderId'])
+    # print(body)
+    order = Order.objects.get(order_number=body['orderId'])
     
     #store payment details to payments model
     payment = Payment(
@@ -25,14 +30,78 @@ def payments(request):
     order.status = 'Completed'  
     order.save()
 
-    return render(request, 'orders/payments.html')
+    #Move the cart items to order product
+    cart_items = CartItem.objects.filter(user=request.user)
+    for item in cart_items:
+        orderProduct = OrderProduct()
+        orderProduct.user = request.user
+        orderProduct.payment = payment
+        orderProduct.order = order
+        # orderProduct.user.id = request.user.id
+        orderProduct.product = item.product
+        orderProduct.quantity = item.quantity
+        orderProduct.product_price = item.product.price
+        orderProduct.is_ordered = True
+        orderProduct.save()
+        cart_item = CartItem.objects.get(id=item.id)
+        product_variations = cart_item.variations.all()
+        orderProduct.variations.set(product_variations)
+        orderProduct.save()
 
+        #reduce stock count based on order products
+        product = Product.objects.get(id=item.product.id)        
+        product.stock -= item.quantity
+        product.save()
+    
+    CartItem.objects.filter(user=request.user).delete()
+
+    #send order received mail to customer
+    mail_subject = 'Thank you for ordering !'
+    message = render_to_string('orders/order-received-email.html',{
+        'user': request.user,
+        'order': order
+    })
+    to_mail = request.user.email
+    send_email = EmailMessage(mail_subject, message, to=[to_mail])
+    # send_email.send()
+    data = {
+        'order_number': order.order_number,
+        'transId': payment.payment_id,
+        'status': payment.status
+    }
+    return JsonResponse(data)
+
+def order_complete(request):
+    order_number = request.GET.get('order_number')
+    transId = request.GET.get('transId')
+    
+    try:
+        order = Order.objects.get(order_number=order_number, is_ordered=True)
+        ordered_products = OrderProduct.objects.filter(order_id=order.id)
+        payment = Payment.objects.get(payment_id=transId)
+        subtotal = 0
+        for item in ordered_products:
+            subtotal += item.quantity * item.product_price
+        tax = 2*subtotal/100
+        # grand_total = subtotal + tax
+
+        context = {
+            'order' : order,
+            'ordered_products': ordered_products,
+            'transId': transId,
+            'payment': payment,
+            'subtotal': subtotal,
+            'tax': tax,
+            # 'grand_total': grand_total
+        }
+        return render(request, 'orders/order-complete.html', context)
+    except (Payment.DoesNotExist, Order.DoesNotExist):
+        return redirect('store')
 
 def place_order(request):
     cart_items = CartItem.objects.filter(user=request.user)
     if cart_items is None:
         return redirect('store')
-    
     tax = 0 
     total = 0
     grand_total = 0
@@ -43,7 +112,7 @@ def place_order(request):
     if request.method == 'POST':
         try:
             form = OrderForm(request.POST)
-            if form.is_valid():
+            if form.is_valid(): 
                 # breakpoint()
                 data = Order()
                 data.user = request.user
@@ -74,6 +143,8 @@ def place_order(request):
                     'cart_items': cart_items
                 }
                 return render(request, 'orders/payments.html',context)
+            else:
+                print('invalid form', form )                
         except (TypeError, ValueError, Exception) as ex:
             print('invalid form' , ex)
     else:

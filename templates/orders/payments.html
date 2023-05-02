@@ -142,6 +142,7 @@ function getCookie(name) {
         var url = "{% url 'payments' %}"
         var orderId = "{{ order.order_number }}"
         var payment_method = 'Paypal'
+        var redirectUrl = "{% url 'order-complete' %}"
 
         // Render the PayPal button into #paypal-button-container
         paypal.Buttons({
@@ -179,7 +180,7 @@ function getCookie(name) {
                         sendData();
                         function sendData(){
                             try {
-                            const response =  fetch(url, {
+                             fetch(url, {
                                 method: "POST", // or 'PUT'
                                 headers: {
                                     "Content-Type": "application/json",
@@ -190,10 +191,13 @@ function getCookie(name) {
                                     payment_method: payment_method,
                                     transId: details.id,
                                     status: details.status
-                                }),
+                                }), 
+                                })                               
+                                .then((response) => response.json())
+                                .then((data) => {
+                                    console.log('Success ->', data)
+                                window.location.href = redirectUrl +'?order_number='+data.order_number+'&transId='+data.transId
                             });
-                            const result = response.json();
-                            console.log("Success:", result);
                         } catch (error) {
                             console.error("Error:", error);
                         }
